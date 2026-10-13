@@ -3,50 +3,52 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AdelaideCraft 2050</title>
 <style>
-body { margin: 0; overflow: hidden; font-family: Arial; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
 canvas { display: block; }
 #hud {
-  position: fixed; top: 12px; left: 12px;
-  color: white; background: #10243acc;
-  padding: 14px; border-radius: 10px;
+  position: fixed; top: 12px; left: 12px; z-index: 2;
+  color: white; background: #10243ae8;
+  padding: 14px 18px; border-radius: 10px;
   line-height: 1.7; pointer-events: none;
 }
 #start {
-  position: fixed; inset: 0; display: flex;
-  align-items: center; justify-content: center;
-  background: #071525bb; color: white;
-  text-align: center; cursor: pointer;
+  position: fixed; inset: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  background: #071525b8; color: white; text-align: center;
 }
 #panel {
-  background: #122c44; padding: 25px;
-  border-radius: 15px; margin: 20px;
+  max-width: 430px; margin: 18px; padding: 28px;
+  border: 1px solid #7899ad; border-radius: 16px;
+  background: #102b40f5;
 }
 button {
-  padding: 14px 25px; font-size: 17px;
+  padding: 14px 25px; border: 0; border-radius: 8px;
+  background: #75e0ac; font-size: 16px;
   font-weight: bold; cursor: pointer;
-  border: 0; border-radius: 8px;
 }
 #crosshair {
-  position: fixed; top: 50%; left: 50%;
+  position: fixed; z-index: 2; left: 50%; top: 50%;
   transform: translate(-50%,-50%);
-  color: white; font-size: 24px;
-  pointer-events: none;
+  color: white; font-size: 23px; pointer-events: none;
 }
+#hint { font-size: 12px; color: #c5dce9; }
 </style>
 </head>
 <body>
 
 <div id="hud">
   <b>🏙️ ADELAIDECRAFT 2050</b><br>
-  WASD: Move<br>
-  Mouse: Look around<br>
-  SHIFT: Run faster<br>
-  SPACE: Jump / fly up<br>
-  CTRL: Fly down<br>
-  ESC: Release mouse
+  <span id="district">Future Adelaide</span><br>
+  WASD — Move<br>
+  Mouse — Look around<br>
+  SHIFT — Run faster<br>
+  SPACE — Fly up<br>
+  CTRL — Fly down<br>
+  ESC — Pause
 </div>
 
 <div id="crosshair">+</div>
@@ -54,10 +56,11 @@ button {
 <div id="start">
   <div id="panel">
     <h1>AdelaideCraft 2050</h1>
-    <p>Explore the future city of Adelaide!</p>
-    <p>WASD to move • Mouse to look</p>
+    <p>Explore a greener, more futuristic Adelaide.</p>
+    <p>Visit the CBD, parklands, river, stadium and future suburbs.</p>
     <button id="play">ENTER CITY</button>
-    <p id="status">Ready to explore?</p>
+    <p id="status">Your future city awaits.</p>
+    <p id="hint">WASD to move · Mouse to look · ESC to pause</p>
   </div>
 </div>
 
@@ -66,152 +69,501 @@ import * as THREE from
 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 180, 650);
+scene.background = new THREE.Color(0x9bc9e5);
+scene.fog = new THREE.Fog(0x9bc9e5, 220, 800);
 
 const camera = new THREE.PerspectiveCamera(
-  75, innerWidth / innerHeight, 0.1, 1000
+  75, innerWidth / innerHeight, 0.1, 1400
 );
-camera.position.set(0, 2, 18);
+camera.position.set(0, 2, 32);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 // Lighting
-scene.add(new THREE.HemisphereLight(0xffffff, 0x596b49, 2));
+scene.add(new THREE.HemisphereLight(0xdaf0ff, 0x63755b, 2));
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.5);
-sun.position.set(-50, 100, 40);
+const sun = new THREE.DirectionalLight(0xfff0d5, 3);
+sun.position.set(-100, 150, 80);
 sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -150;
+sun.shadow.camera.right = 150;
+sun.shadow.camera.top = 150;
+sun.shadow.camera.bottom = -150;
 scene.add(sun);
 
+// Materials
+const mat = (color, roughness = 0.85, metalness = 0) =>
+  new THREE.MeshStandardMaterial({ color, roughness, metalness });
+
+const grassMat = mat(0x60965b);
+const darkGrass = mat(0x3c754b);
+const roadMat = mat(0x343941);
+const footpathMat = mat(0xb9b9ad);
+const concrete = mat(0xc4c5c0);
+const whiteLine = mat(0xf5f0d6);
+const glass = mat(0x77c5db, 0.24, 0.35);
+const roofMat = mat(0x555d65);
+
+// Procedural road texture
+function makeRoadTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#454950';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 1800; i++) {
+    const v = 55 + Math.random() * 50;
+    ctx.fillStyle = `rgba(${v},${v},${v},0.15)`;
+    ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(3, 20);
+  return t;
+}
+
+const asphalt = new THREE.MeshStandardMaterial({
+  map: makeRoadTexture(), roughness: 1
+});
+
 // Ground
+function box(w, h, d, material, x, y, z, cast = false) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d), material
+  );
+  m.position.set(x, y, z);
+  m.castShadow = cast;
+  m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(1200, 1200),
-  new THREE.MeshStandardMaterial({ color: 0x419447 })
+  new THREE.PlaneGeometry(1800, 1800), grassMat
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Roads
-function makeRoad(x, z, w, d) {
-  const road = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, d),
-    new THREE.MeshStandardMaterial({ color: 0x30343b })
+// Park areas
+function park(x, z, w, d) {
+  const p = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d), darkGrass
   );
-  road.rotation.x = -Math.PI / 2;
-  road.position.set(x, 0.04, z);
-  scene.add(road);
+  p.rotation.x = -Math.PI / 2;
+  p.position.set(x, 0.025, z);
+  scene.add(p);
 }
 
-makeRoad(0, 0, 16, 500);
-makeRoad(0, 0, 500, 16);
+park(-75, 0, 75, 220);
+park(75, 0, 75, 220);
+park(0, -100, 100, 55);
+park(0, 100, 100, 55);
 
-const yellow = new THREE.MeshBasicMaterial({ color: 0xffe7a0 });
-
-for (let z = -240; z < 250; z += 12) {
-  const line = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.25, 5), yellow
+// Roads and footpaths
+function road(x, z, w, d, rotation = 0) {
+  const r = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d), asphalt
   );
-  line.rotation.x = -Math.PI / 2;
-  line.position.set(0, 0.07, z);
-  scene.add(line);
+  r.rotation.x = -Math.PI / 2;
+  r.rotation.z = rotation;
+  r.position.set(x, 0.04, z);
+  scene.add(r);
 }
 
-// Building materials
-const colors = [
-  0x8296a8, 0x537b99, 0xb5c5d5,
-  0x657783, 0x719ca5, 0x8e9ba8
-];
+function path(x, z, w, d) {
+  const p = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d), footpathMat
+  );
+  p.rotation.x = -Math.PI / 2;
+  p.position.set(x, 0.09, z);
+  scene.add(p);
+}
 
-const materials = colors.map(c =>
-  new THREE.MeshStandardMaterial({
-    color: c, metalness: 0.35, roughness: 0.4
-  })
-);
+// Main Adelaide-style city grid
+for (let p = -210; p <= 210; p += 30) {
+  road(p, 0, 10, 440);
+  road(0, p, 440, 10);
 
-const glass = new THREE.MeshStandardMaterial({
-  color: 0x77d9f5,
-  emissive: 0x12394b,
-  metalness: 0.45,
-  roughness: 0.25
+  // Footpaths beside major streets
+  path(p - 6, 0, 1.4, 440);
+  path(p + 6, 0, 1.4, 440);
+  path(0, p - 6, 440, 1.4);
+  path(0, p + 6, 440, 1.4);
+}
+
+// Lane dashes
+for (let p = -200; p <= 200; p += 14) {
+  box(0.22, 0.025, 5, whiteLine, 0, 0.11, p);
+  box(5, 0.025, 0.22, whiteLine, p, 0.11, 0);
+}
+
+// River Torrens-inspired river winding through the scene
+const riverMat = new THREE.MeshStandardMaterial({
+  color: 0x419dbd, roughness: 0.23, metalness: 0.12
 });
 
-// Create buildings with windows
-function makeBuilding(x, z, w, d, h, id) {
-  const building = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    materials[id % materials.length]
+function riverSegment(x, z, length, width, angle) {
+  const r = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, length), riverMat
   );
+  r.rotation.x = -Math.PI / 2;
+  r.rotation.z = angle;
+  r.position.set(x, 0.16, z);
+  scene.add(r);
+}
 
-  building.position.set(x, h / 2, z);
-  building.castShadow = true;
-  building.receiveShadow = true;
-  scene.add(building);
+riverSegment(0, -20, 90, 17, 0.18);
+riverSegment(12, 38, 70, 17, -0.13);
+riverSegment(-8, 87, 45, 17, 0.2);
 
-  const windowGeo = new THREE.BoxGeometry(
-    Math.min(1.2, w / 5), 1.15, 0.07
+// Bridges
+function bridge(x, z, angle = 0) {
+  const b = box(24, 0.6, 7, concrete, x, 0.9, z);
+  b.rotation.y = angle;
+  for (const side of [-1, 1]) {
+    const rail = box(24, 0.65, 0.22, roofMat,
+      x, 1.45, z + side * 3.4);
+    rail.rotation.y = angle;
+  }
+}
+bridge(0, 10);
+bridge(3, 57, 0.15);
+
+// Trees
+const trunkMat = mat(0x79523a);
+const leafMats = [
+  mat(0x397c46), mat(0x4b8c4c), mat(0x619c50)
+];
+
+function tree(x, z, scale = 1) {
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      0.18*scale, 0.28*scale, 2.3*scale, 7
+    ), trunkMat
   );
+  trunk.position.set(x, 1.15*scale, z);
+  trunk.castShadow = true;
+  scene.add(trunk);
 
-  const cols = Math.max(2, Math.floor(w / 2.4));
-  const floors = Math.floor(h / 3.2);
+  const crown = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.45*scale, 1),
+    leafMats[Math.floor(Math.random()*leafMats.length)]
+  );
+  crown.position.set(x, 3*scale, z);
+  crown.castShadow = true;
+  scene.add(crown);
+}
 
-  for (let f = 1; f < floors; f++) {
-    for (let c = 0; c < cols; c++) {
-      const wx = x - w / 2 + (c + 0.5) * w / cols;
-      const wy = f * 3.2;
+// Tree-lined streets and parklands
+for (let p = -200; p <= 200; p += 12) {
+  for (const side of [-1, 1]) {
+    tree(p + (Math.random()-0.5)*2, side*79,
+      0.8 + Math.random()*0.45);
+    tree(side*79, p, 0.8 + Math.random()*0.45);
+  }
+}
 
-      for (const side of [-1, 1]) {
-        const win = new THREE.Mesh(windowGeo, glass);
-        win.position.set(wx, wy, z + side * (d / 2 + 0.04));
-        scene.add(win);
-      }
+for (let i = 0; i < 160; i++) {
+  let x = (Math.random()-0.5)*145;
+  let z = (Math.random()-0.5)*205;
+
+  // Leave central roads clear
+  if (Math.abs(x % 30) < 10 || Math.abs(z % 30) < 10)
+    continue;
+  tree(x, z, 0.7 + Math.random()*0.6);
+}
+
+// Procedural building facade texture
+function facadeTexture(tower = false) {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 512;
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = tower ? '#667b8b' : '#c2b9a6';
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  for (let y = 12; y < 500; y += tower ? 23 : 35) {
+    for (let x = 8; x < 250; x += tower ? 24 : 35) {
+      const lit = Math.random() > 0.28;
+      ctx.fillStyle = tower
+        ? (lit ? '#a3d9e6' : '#344b5a')
+        : (lit ? '#b3d8e0' : '#647783');
+      ctx.fillRect(x, y, tower ? 15 : 22, tower ? 13 : 21);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(x, y, 2, tower ? 13 : 21);
     }
   }
 
-  // Rooftop
-  if (h > 35) {
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 0.4, 2, d * 0.4),
-      materials[3]
-    );
-    roof.position.set(x, h + 1, z);
-    scene.add(roof);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+const towerMaterials = [
+  new THREE.MeshStandardMaterial({
+    map: facadeTexture(true), roughness: 0.3, metalness: 0.3
+  }),
+  mat(0x9caab4, 0.38, 0.25),
+  mat(0xc8c8c0, 0.7),
+  mat(0xb8a993, 0.8),
+  mat(0x839e9e, 0.4, 0.15)
+];
+
+const windowMat = mat(0x9cdef0, 0.22, 0.3);
+
+// Detailed buildings
+function building(x, z, w, d, h, type = 'tower') {
+  const tower = type === 'tower';
+  const baseMat = tower
+    ? towerMaterials[Math.floor(Math.random()*towerMaterials.length)]
+    : towerMaterials[2 + Math.floor(Math.random()*3)];
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d), baseMat
+  );
+  body.position.set(x, h/2, z);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  scene.add(body);
+
+  // Flat roof
+  box(w+0.3, 0.35, d+0.3, roofMat,
+    x, h+0.16, z);
+
+  // Rooftop equipment
+  if (tower && h > 35) {
+    box(w*0.32, 2, d*0.32, concrete,
+      x, h+1.25, z);
+    box(1.1, 3, 1.1, glass,
+      x+w*0.16, h+2.6, z);
+  }
+
+  // Repeated window panels on four faces
+  const cols = Math.max(2, Math.floor(w/2.5));
+  const floors = Math.min(35, Math.floor(h/3.1));
+
+  for (let f = 1; f < floors; f++) {
+    for (let c = 0; c < cols; c++) {
+      const wx = x-w/2+(c+0.5)*w/cols;
+      const wy = f*3.1;
+
+      const front = new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          Math.min(1.25, w/cols*0.68), 1.2
+        ), windowMat
+      );
+      front.position.set(wx, wy, z+d/2+0.012);
+      scene.add(front);
+
+      const back = front.clone();
+      back.position.z = z-d/2-0.012;
+      back.rotation.y = Math.PI;
+      scene.add(back);
+    }
+
+    const rows = Math.max(2, Math.floor(d/2.5));
+    for (let c = 0; c < rows; c++) {
+      const wz = z-d/2+(c+0.5)*d/rows;
+
+      const side = new THREE.Mesh(
+        new THREE.PlaneGeometry(
+          Math.min(1.2, d/rows*0.65), 1.2
+        ), windowMat
+      );
+      side.rotation.y = Math.PI/2;
+      side.position.set(x+w/2+0.012, wy, wz);
+      scene.add(side);
+
+      const other = side.clone();
+      other.position.x = x-w/2-0.012;
+      other.rotation.y = -Math.PI/2;
+      scene.add(other);
+    }
   }
 }
 
-// Repeatable random city layout
+// Deterministic city layout
 let seed = 2050;
-function random() {
+function rand() {
   seed = (seed * 16807) % 2147483647;
-  return (seed - 1) / 2147483646;
+  return (seed-1)/2147483646;
 }
 
-let id = 0;
+// CBD blocks
+for (let x = -65; x <= 65; x += 30) {
+  for (let z = -105; z <= 105; z += 30) {
+    if (Math.abs(x) < 16 || Math.abs(z) < 16) continue;
 
-for (let x = -110; x <= 110; x += 22) {
-  for (let z = -110; z <= 110; z += 22) {
-    if (Math.abs(x) < 17 || Math.abs(z) < 17) continue;
-
-    const w = 10 + random() * 6;
-    const d = 10 + random() * 6;
-    const h = 18 + random() * 75;
-
-    makeBuilding(x, z, w, d, h, id++);
+    building(
+      x+(rand()-0.5)*3,
+      z+(rand()-0.5)*3,
+      12+rand()*7, 12+rand()*7,
+      20+rand()*85, 'tower'
+    );
   }
 }
 
-// Player controls
+// Suburban neighbourhoods with houses and townhouses
+const houseMats = [
+  mat(0xd8d1c3), mat(0xd6c2a9),
+  mat(0xc2d2cf), mat(0xe1dfd5)
+];
+
+function house(x, z, scale = 1) {
+  const w = 8*scale, d = 9*scale, h = 4*scale;
+  const wallMat = houseMats[Math.floor(rand()*houseMats.length)];
+
+  box(w, h, d, wallMat, x, h/2, z, true);
+  box(w+0.5*scale, 0.35*scale, d+0.5*scale,
+    mat(0x555961), x, h+0.12*scale, z);
+
+  // Front door and windows
+  box(1.1*scale, 2.2*scale, 0.12*scale,
+    mat(0x72533b), x, 1.1*scale, z+d/2+0.07);
+
+  for (const side of [-1, 1]) {
+    box(1.5*scale, 1.25*scale, 0.1*scale,
+      glass, x+side*2.3*scale, 2.2*scale, z+d/2+0.08);
+  }
+
+  // Small solar panels
+  box(2.5*scale, 0.08*scale, 2*scale,
+    mat(0x244d65, 0.3, 0.3),
+    x-1.5*scale, h+0.35*scale, z);
+}
+
+// Low-rise residential districts outside CBD
+for (const districtX of [-165, 165]) {
+  for (let x = districtX-28; x <= districtX+28; x += 14) {
+    for (let z = -100; z <= 100; z += 20) {
+      if (Math.abs(z % 30) < 10) continue;
+      house(x, z, 0.85+rand()*0.2);
+      if (rand() > 0.4) tree(x+6, z+5, 0.65);
+    }
+  }
+}
+
+// Future housing precinct: apartments, townhouses, parks
+park(115, 0, 62, 100);
+
+for (let x = 95; x <= 135; x += 20) {
+  for (let z = -35; z <= 35; z += 24) {
+    building(x, z, 13, 14, 18+rand()*18, 'tower');
+  }
+}
+
+for (let x = 92; x <= 138; x += 9) {
+  for (let z = -65; z <= -45; z += 11) {
+    house(x, z, 0.85);
+  }
+}
+
+// Parks and solar-powered community buildings
+function pavilion(x, z, w, d, h) {
+  box(w, h, d, mat(0xd5d7cf), x, h/2, z, true);
+  box(w+1, 0.4, d+1, mat(0x4a656d),
+    x, h+0.2, z);
+  box(w*0.55, 0.08, d*0.7,
+    mat(0x20516a, 0.25, 0.25),
+    x, h+0.45, z);
+}
+
+pavilion(-40, -135, 18, 14, 5);
+pavilion(40, 135, 18, 14, 5);
+
+// Adelaide Oval-inspired stadium
+const oval = new THREE.Mesh(
+  new THREE.CylinderGeometry(22, 22, 1.2, 48),
+  mat(0x528e52)
+);
+oval.scale.z = 0.68;
+oval.position.set(50, 0.55, -20);
+scene.add(oval);
+
+const rim = new THREE.Mesh(
+  new THREE.TorusGeometry(22, 1.4, 8, 64),
+  mat(0xe0dfd6)
+);
+rim.scale.set(1, 0.68, 1);
+rim.rotation.x = Math.PI/2;
+rim.position.set(50, 1.2, -20);
+scene.add(rim);
+
+// Stadium seating ring
+const seating = new THREE.Mesh(
+  new THREE.CylinderGeometry(25, 25, 5, 48, 1, true),
+  mat(0xc2c4bd)
+);
+seating.scale.z = 0.68;
+seating.position.set(50, 3.3, -20);
+scene.add(seating);
+
+// Victoria Square-inspired civic plaza
+const plaza = new THREE.Mesh(
+  new THREE.PlaneGeometry(24, 24),
+  concrete
+);
+plaza.rotation.x = -Math.PI/2;
+plaza.position.set(-15, 0.12, 15);
+scene.add(plaza);
+
+// Central green space and public art
+for (let a = 0; a < 8; a++) {
+  const angle = a*Math.PI/4;
+  tree(-15+Math.cos(angle)*10,
+       15+Math.sin(angle)*10, 0.85);
+}
+
+const art = new THREE.Mesh(
+  new THREE.ConeGeometry(1.5, 7, 6),
+  mat(0xd4b978, 0.4, 0.4)
+);
+art.position.set(-15, 3.7, 15);
+scene.add(art);
+
+// Streetlights
+function streetlight(x, z) {
+  box(0.16, 5, 0.16, roofMat, x, 2.5, z);
+  box(1.3, 0.14, 0.25, roofMat, x+0.55, 5, z);
+  box(0.7, 0.12, 0.25, mat(0xffefb3, 0.3),
+    x+0.85, 4.9, z);
+}
+
+for (let p = -180; p <= 180; p += 30) {
+  streetlight(p+7, -12);
+  streetlight(-12, p+7);
+}
+
+// Distant Adelaide Hills silhouette
+const hillMat = mat(0x829b8a);
+for (let i = 0; i < 18; i++) {
+  const h = 25+rand()*35;
+  const hill = new THREE.Mesh(
+    new THREE.ConeGeometry(25+rand()*20, h, 8),
+    hillMat
+  );
+  hill.position.set(260+i*22, h/2-3, -350);
+  scene.add(hill);
+}
+
+// Controls: preserve first-person movement
 const keys = {};
-let yaw = 0;
-let pitch = 0;
-const start = document.getElementById('start');
+let yaw = 0, pitch = 0;
+
+const startScreen = document.getElementById('start');
 const status = document.getElementById('status');
+const district = document.getElementById('district');
 
 document.getElementById('play').addEventListener('click', () => {
   renderer.domElement.requestPointerLock();
@@ -220,31 +572,26 @@ document.getElementById('play').addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   const playing =
     document.pointerLockElement === renderer.domElement;
+  startScreen.style.display = playing ? 'none' : 'flex';
 
-  start.style.display = playing ? 'none' : 'flex';
-
-  if (!playing) status.textContent = 'Click ENTER CITY to resume.';
+  if (!playing) status.textContent = 'Click ENTER CITY to continue.';
 });
 
 document.addEventListener('pointerlockerror', () => {
-  status.textContent = 'Mouse lock failed. Try again.';
+  status.textContent = 'Mouse lock failed. Click ENTER CITY again.';
 });
 
 document.addEventListener('mousemove', e => {
   if (document.pointerLockElement !== renderer.domElement) return;
-
-  yaw -= e.movementX * 0.002;
-  pitch -= e.movementY * 0.002;
-  pitch = THREE.MathUtils.clamp(pitch, -1.55, 1.55);
+  yaw -= e.movementX*0.002;
+  pitch -= e.movementY*0.002;
+  pitch = THREE.MathUtils.clamp(pitch, -1.5, 1.5);
 });
 
 document.addEventListener('keydown', e => {
   keys[e.code] = true;
-
-  if (['Space', 'ArrowUp', 'ArrowDown',
-       'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-    e.preventDefault();
-  }
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']
+      .includes(e.code)) e.preventDefault();
 });
 
 document.addEventListener('keyup', e => {
@@ -262,7 +609,6 @@ const right = new THREE.Vector3();
 
 function animate() {
   requestAnimationFrame(animate);
-
   const dt = Math.min(clock.getDelta(), 0.05);
 
   camera.rotation.order = 'YXZ';
@@ -274,23 +620,32 @@ function animate() {
     right.set(Math.cos(yaw), 0, -Math.sin(yaw));
     direction.set(0, 0, 0);
 
-    if (keys.KeyW) direction.add(forward);
-    if (keys.KeyS) direction.sub(forward);
-    if (keys.KeyD) direction.add(right);
-    if (keys.KeyA) direction.sub(right);
+    if (keys.KeyW || keys.ArrowUp) direction.add(forward);
+    if (keys.KeyS || keys.ArrowDown) direction.sub(forward);
+    if (keys.KeyD || keys.ArrowRight) direction.add(right);
+    if (keys.KeyA || keys.ArrowLeft) direction.sub(right);
 
     if (direction.lengthSq() > 0) {
       direction.normalize();
-      const speed = keys.ShiftLeft || keys.ShiftRight ? 32 : 16;
-      camera.position.addScaledVector(direction, speed * dt);
+      const speed =
+        keys.ShiftLeft || keys.ShiftRight ? 30 : 14;
+      camera.position.addScaledVector(direction, speed*dt);
     }
 
-    if (keys.Space) camera.position.y += 12 * dt;
-    if (keys.ControlLeft || keys.ControlRight) {
-      camera.position.y -= 12 * dt;
-    }
+    if (keys.Space) camera.position.y += 10*dt;
+    if (keys.ControlLeft || keys.ControlRight)
+      camera.position.y -= 10*dt;
 
     camera.position.y = Math.max(1.5, camera.position.y);
+
+    const x = camera.position.x;
+    const z = camera.position.z;
+    district.textContent =
+      Math.abs(x) < 75 && Math.abs(z) < 110
+        ? 'Adelaide CBD'
+        : Math.abs(x) > 85
+          ? 'Future suburbs'
+          : 'Adelaide parklands';
   }
 
   renderer.render(scene, camera);
@@ -299,7 +654,7 @@ function animate() {
 animate();
 
 window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
