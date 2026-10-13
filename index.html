@@ -565,8 +565,17 @@ const startScreen = document.getElementById('start');
 const status = document.getElementById('status');
 const district = document.getElementById('district');
 
-document.getElementById('play').addEventListener('click', () => {
-  renderer.domElement.requestPointerLock();
+const playButton = document.getElementById('play');
+
+playButton.addEventListener('click', async () => {
+  status.textContent = 'Loading city controls...';
+
+  try {
+    await renderer.domElement.requestPointerLock();
+  } catch (error) {
+    status.textContent =
+      'Could not capture mouse. Try clicking again.';
+  }
 });
 
 document.addEventListener('pointerlockchange', () => {
