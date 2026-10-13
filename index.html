@@ -72,7 +72,161 @@ const scene = new THREE.Scene();
 const mapGroup = new THREE.Group();
 scene.add(mapGroup);
 
+async function 
 async function loadAdelaideMap() {
+  try {
+    const response = await fetch("./adelaide-cbd.geojson");
+
+    if (!response.ok) {
+      throw new Error("Map file not found: " + response.status);
+    }
+
+    const data = await response.json();
+
+    const referenceLat = -34.92;
+    const referenceLon = 138.60;
+    const scale = 111000;
+
+    function project(lon, lat) {
+      return {
+        x: (lon - referenceLon) * scale *
+          Math.cos(referenceLat * Math.PI / 180),
+        z: -(lat - referenceLat) * scale
+      };
+    }
+
+    function makeBuilding(rings, tags) {
+      if (!rings || !rings[0] || rings[0].length < 4) return;
+
+      const outer = rings[0].map(c => project(c[0], c[1]));
+      const shape = new THREE.Shape();
+
+      shape.moveTo(outer[0].x, -outer[0].z);
+
+      for (let i = 1; i < outer.length; i++) {
+        shape.lineTo(outer[i].x, -outer[i].z);
+      }
+
+      shape.closePath();
+
+      for (const ring of rings.slice(1)) {
+        if (ring.length < 4) continue;
+
+        const hole = new THREE.Path();
+        const first = project(ring[0][0], ring[0][1]);
+        hole.moveTo(first.x, -first.z);
+
+        for (let i = 1; i < ring.length; i++) {
+          const p = project(ring[i][0], ring[i][1]);
+          hole.lineTo(p.x, -p.z);
+        }
+
+        hole.closePath();
+        shape.holes.push(hole);
+      }
+
+      const levels = Number(tags["building:levels"]) || 0;
+      const taggedHeight = parseFloat(tags.height) || 0;
+      const height = Math.max(
+        2.8,
+        Math.min(120, taggedHeight || (levels ? levels * 3.2 : 7))
+      );
+
+      const colours = [0xb9b5aa, 0xd0c5b2, 0x9caaa9, 0xc4cbd0];
+      const colour = colours[
+        Math.abs(outer.length * 17 + Math.round(outer[0].x)) % colours.length
+      ];
+
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: height,
+        bevelEnabled: false
+      });
+
+      geometry.rotateX(-Math.PI / 2);
+
+      const building = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({
+          color: colour,
+          roughness: 0.85
+        })
+      );
+
+      building.position.y = 0.12;
+      building.castShadow = true;
+      building.receiveShadow = true;
+      mapGroup.add(building);
+    }
+
+    for (const feature of data.features || []) {
+      const tags = feature.properties?.tags || feature.properties || {};
+      const geometry = feature.geometry;
+
+      if (!geometry) continue;
+
+      if (tags.building) {
+        if (geometry.type === "Polygon") {
+          makeBuilding(geometry.coordinates, tags);
+        } else if (geometry.type === "MultiPolygon") {
+          for (const polygon of geometry.coordinates) {
+            makeBuilding(polygon, tags);
+          }
+        }
+      }
+
+      if (
+        tags.highway &&
+        (geometry.type === "LineString" ||
+         geometry.type === "MultiLineString")
+      ) {
+        const lines = geometry.type === "LineString"
+          ? [geometry.coordinates]
+          : geometry.coordinates;
+
+        const width =
+          tags.highway === "motorway" ? 12 :
+          tags.highway === "primary" ? 9 :
+          tags.highway === "secondary" ? 7 :
+          tags.highway === "residential" ? 5 : 4;
+
+        for (const coordinates of lines) {
+          for (let i = 1; i < coordinates.length; i++) {
+            const a = project(coordinates[i - 1][0], coordinates[i - 1][1]);
+            const b = project(coordinates[i][0], coordinates[i][1]);
+
+            const dx = b.x - a.x;
+            const dz = b.z - a.z;
+            const length = Math.hypot(dx, dz);
+
+            if (length < 0.1) continue;
+
+            const road = new THREE.Mesh(
+              new THREE.BoxGeometry(length, 0.15, width),
+              new THREE.MeshStandardMaterial({
+                color: 0x454950,
+                roughness: 1
+              })
+            );
+
+            road.position.set(
+              (a.x + b.x) / 2,
+              0.08,
+              (a.z + b.z) / 2
+            );
+
+            road.rotation.y = -Math.atan2(dz, dx);
+            mapGroup.add(road);
+          }
+        }
+      }
+    }
+
+    console.log("Adelaide map loaded:", data.features?.length, "features");
+  } catch (error) {
+    console.error("Adelaide map failed to load:", error);
+  }
+}
+
   try {
     const response = await fetch("./adelaide-cbd.geojson");
 
