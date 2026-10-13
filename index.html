@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,46 +6,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AdelaideCraft 2050</title>
 <style>
-  body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-  canvas { display: block; }
-  #hud {
-    position: fixed; top: 15px; left: 15px;
-    color: white; background: #10243acc;
-    padding: 14px; border-radius: 10px;
-    line-height: 1.7; user-select: none;
-  }
-  #crosshair {
-    position: fixed; left: 50%; top: 50%;
-    color: white; font-size: 24px;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-  #start {
-    position: fixed; inset: 0; display: flex;
-    align-items: center; justify-content: center;
-    background: #07152599; color: white;
-    text-align: center; cursor: pointer;
-  }
-  #panel {
-    background: #122c44; padding: 28px;
-    border-radius: 16px; max-width: 360px;
-    margin: 20px;
-  }
-  button {
-    padding: 12px 22px; border: 0;
-    border-radius: 8px; cursor: pointer;
-    font-size: 16px; font-weight: bold;
-  }
+body { margin: 0; overflow: hidden; font-family: Arial; }
+canvas { display: block; }
+#hud {
+  position: fixed; top: 12px; left: 12px;
+  color: white; background: #10243acc;
+  padding: 14px; border-radius: 10px;
+  line-height: 1.7; pointer-events: none;
+}
+#start {
+  position: fixed; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  background: #071525bb; color: white;
+  text-align: center; cursor: pointer;
+}
+#panel {
+  background: #122c44; padding: 25px;
+  border-radius: 15px; margin: 20px;
+}
+button {
+  padding: 14px 25px; font-size: 17px;
+  font-weight: bold; cursor: pointer;
+  border: 0; border-radius: 8px;
+}
+#crosshair {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  color: white; font-size: 24px;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
 
 <div id="hud">
-  <strong>🏙️ AdelaideCraft 2050</strong><br>
+  <b>🏙️ ADELAIDECRAFT 2050</b><br>
   WASD: Move<br>
   Mouse: Look around<br>
-  SPACE: Move up<br>
-  SHIFT: Move faster<br>
+  SHIFT: Run faster<br>
+  SPACE: Jump / fly up<br>
+  CTRL: Fly down<br>
   ESC: Release mouse
 </div>
 
@@ -53,175 +54,163 @@
 <div id="start">
   <div id="panel">
     <h1>AdelaideCraft 2050</h1>
-    <p>Explore your future city in 3D!</p>
-    <p>WASD to move and your mouse to look around.</p>
+    <p>Explore the future city of Adelaide!</p>
+    <p>WASD to move • Mouse to look</p>
     <button id="play">ENTER CITY</button>
-    <p id="status">Click ENTER CITY to begin.</p>
+    <p id="status">Ready to explore?</p>
   </div>
 </div>
 
 <script type="module">
 import * as THREE from
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 100, 500);
+scene.fog = new THREE.Fog(0x87ceeb, 180, 650);
 
 const camera = new THREE.PerspectiveCamera(
   75, innerWidth / innerHeight, 0.1, 1000
 );
-camera.position.set(0, 2, 20);
+camera.position.set(0, 2, 18);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 // Lighting
-scene.add(new THREE.HemisphereLight(0xffffff, 0x52664a, 2));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x596b49, 2));
 
 const sun = new THREE.DirectionalLight(0xffffff, 2.5);
-sun.position.set(-40, 80, 30);
+sun.position.set(-50, 100, 40);
 sun.castShadow = true;
 scene.add(sun);
 
-// Green ground
+// Ground
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(1000, 1000),
-  new THREE.MeshStandardMaterial({ color: 0x439447 })
+  new THREE.PlaneGeometry(1200, 1200),
+  new THREE.MeshStandardMaterial({ color: 0x419447 })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
 // Roads
-function road(x, z, width, depth) {
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, depth),
-    new THREE.MeshStandardMaterial({ color: 0x343941 })
+function makeRoad(x, z, w, d) {
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshStandardMaterial({ color: 0x30343b })
   );
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(x, 0.025, z);
-  scene.add(mesh);
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(x, 0.04, z);
+  scene.add(road);
 }
 
-road(0, 0, 14, 400);
-road(0, 0, 400, 14);
+makeRoad(0, 0, 16, 500);
+makeRoad(0, 0, 500, 16);
 
-// Road lane markings
-const lineMaterial = new THREE.MeshBasicMaterial({
-  color: 0xf4e9a4
-});
+const yellow = new THREE.MeshBasicMaterial({ color: 0xffe7a0 });
 
-for (let z = -190; z < 200; z += 12) {
+for (let z = -240; z < 250; z += 12) {
   const line = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.25, 5),
-    lineMaterial
+    new THREE.PlaneGeometry(0.25, 5), yellow
   );
   line.rotation.x = -Math.PI / 2;
-  line.position.set(0, 0.06, z);
+  line.position.set(0, 0.07, z);
   scene.add(line);
 }
 
-const buildingMaterials = [
-  0x899eae, 0x6889a2, 0xb5c4d1,
-  0x64747f, 0x8f9ba8, 0x6c9da8
-].map(color => new THREE.MeshStandardMaterial({
-  color,
-  roughness: 0.4,
-  metalness: 0.25
-}));
+// Building materials
+const colors = [
+  0x8296a8, 0x537b99, 0xb5c5d5,
+  0x657783, 0x719ca5, 0x8e9ba8
+];
 
-const windowMaterial = new THREE.MeshStandardMaterial({
-  color: 0x8ee5ff,
-  emissive: 0x16445a,
-  metalness: 0.4,
+const materials = colors.map(c =>
+  new THREE.MeshStandardMaterial({
+    color: c, metalness: 0.35, roughness: 0.4
+  })
+);
+
+const glass = new THREE.MeshStandardMaterial({
+  color: 0x77d9f5,
+  emissive: 0x12394b,
+  metalness: 0.45,
   roughness: 0.25
 });
 
-// Build the city
-function building(x, z, w, d, h, index) {
-  const material = buildingMaterials[
-    index % buildingMaterials.length
-  ];
-
-  const tower = new THREE.Mesh(
+// Create buildings with windows
+function makeBuilding(x, z, w, d, h, id) {
+  const building = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
-    material
+    materials[id % materials.length]
   );
-  tower.position.set(x, h / 2, z);
-  tower.castShadow = true;
-  tower.receiveShadow = true;
-  scene.add(tower);
 
-  // Windows on the front and back
-  const floors = Math.floor(h / 3);
-  const columns = Math.max(2, Math.floor(w / 2.5));
+  building.position.set(x, h / 2, z);
+  building.castShadow = true;
+  building.receiveShadow = true;
+  scene.add(building);
 
-  for (let floor = 1; floor < floors; floor++) {
-    for (let col = 0; col < columns; col++) {
-      const wx = x - w / 2 + (col + 0.5) * w / columns;
-      const wy = floor * 3;
+  const windowGeo = new THREE.BoxGeometry(
+    Math.min(1.2, w / 5), 1.15, 0.07
+  );
+
+  const cols = Math.max(2, Math.floor(w / 2.4));
+  const floors = Math.floor(h / 3.2);
+
+  for (let f = 1; f < floors; f++) {
+    for (let c = 0; c < cols; c++) {
+      const wx = x - w / 2 + (c + 0.5) * w / cols;
+      const wy = f * 3.2;
 
       for (const side of [-1, 1]) {
-        const windowMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            Math.min(1.1, w / columns * 0.55),
-            1.1,
-            0.06
-          ),
-          windowMaterial
-        );
-        windowMesh.position.set(
-          wx, wy, z + side * (d / 2 + 0.04)
-        );
-        scene.add(windowMesh);
+        const win = new THREE.Mesh(windowGeo, glass);
+        win.position.set(wx, wy, z + side * (d / 2 + 0.04));
+        scene.add(win);
       }
     }
   }
 
-  // Rooftop structure
-  if (h > 30) {
+  // Rooftop
+  if (h > 35) {
     const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 0.35, 2, d * 0.35),
-      buildingMaterials[3]
+      new THREE.BoxGeometry(w * 0.4, 2, d * 0.4),
+      materials[3]
     );
     roof.position.set(x, h + 1, z);
     scene.add(roof);
   }
 }
 
+// Repeatable random city layout
 let seed = 2050;
 function random() {
   seed = (seed * 16807) % 2147483647;
   return (seed - 1) / 2147483646;
 }
 
-let index = 0;
+let id = 0;
 
-for (let x = -55; x <= 55; x += 18) {
-  for (let z = -65; z <= 65; z += 18) {
-    // Keep the starting area and roads clear
-    if (Math.abs(x) < 13 || Math.abs(z) < 13) continue;
+for (let x = -110; x <= 110; x += 22) {
+  for (let z = -110; z <= 110; z += 22) {
+    if (Math.abs(x) < 17 || Math.abs(z) < 17) continue;
 
-    const w = 9 + random() * 5;
-    const d = 9 + random() * 5;
-    const h = 15 + random() * 65;
+    const w = 10 + random() * 6;
+    const d = 10 + random() * 6;
+    const h = 18 + random() * 75;
 
-    building(x, z, w, d, h, index++);
+    makeBuilding(x, z, w, d, h, id++);
   }
 }
 
-// Controls
+// Player controls
+const keys = {};
 let yaw = 0;
 let pitch = 0;
-const keys = {};
-const playerSpeed = 18;
-const startScreen = document.getElementById('start');
+const start = document.getElementById('start');
 const status = document.getElementById('status');
 
 document.getElementById('play').addEventListener('click', () => {
@@ -229,46 +218,41 @@ document.getElementById('play').addEventListener('click', () => {
 });
 
 document.addEventListener('pointerlockchange', () => {
-  const playing = document.pointerLockElement === renderer.domElement;
-  startScreen.style.display = playing ? 'none' : 'flex';
+  const playing =
+    document.pointerLockElement === renderer.domElement;
 
-  if (!playing) {
-    status.textContent = 'Click ENTER CITY to continue.';
-  }
+  start.style.display = playing ? 'none' : 'flex';
+
+  if (!playing) status.textContent = 'Click ENTER CITY to resume.';
 });
 
 document.addEventListener('pointerlockerror', () => {
-  status.textContent =
-    'Mouse lock failed. Try clicking ENTER CITY again.';
+  status.textContent = 'Mouse lock failed. Try again.';
 });
 
-document.addEventListener('mousemove', event => {
+document.addEventListener('mousemove', e => {
   if (document.pointerLockElement !== renderer.domElement) return;
 
-  yaw -= event.movementX * 0.002;
-  pitch -= event.movementY * 0.002;
-  pitch = THREE.MathUtils.clamp(
-    pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01
-  );
+  yaw -= e.movementX * 0.002;
+  pitch -= e.movementY * 0.002;
+  pitch = THREE.MathUtils.clamp(pitch, -1.55, 1.55);
 });
 
-document.addEventListener('keydown', event => {
-  keys[event.code] = true;
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
 
-  if ([
-    'Space', 'ArrowUp', 'ArrowDown',
-    'ArrowLeft', 'ArrowRight'
-  ].includes(event.code)) {
-    event.preventDefault();
+  if (['Space', 'ArrowUp', 'ArrowDown',
+       'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+    e.preventDefault();
   }
 });
 
-document.addEventListener('keyup', event => {
-  keys[event.code] = false;
+document.addEventListener('keyup', e => {
+  keys[e.code] = false;
 });
 
 window.addEventListener('blur', () => {
-  for (const key in keys) keys[key] = false;
+  for (const k in keys) keys[k] = false;
 });
 
 const clock = new THREE.Clock();
@@ -279,7 +263,7 @@ const right = new THREE.Vector3();
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.05);
+  const dt = Math.min(clock.getDelta(), 0.05);
 
   camera.rotation.order = 'YXZ';
   camera.rotation.y = yaw;
@@ -290,19 +274,21 @@ function animate() {
     right.set(Math.cos(yaw), 0, -Math.sin(yaw));
     direction.set(0, 0, 0);
 
-    if (keys.KeyW || keys.ArrowUp) direction.add(forward);
-    if (keys.KeyS || keys.ArrowDown) direction.sub(forward);
-    if (keys.KeyD || keys.ArrowRight) direction.add(right);
-    if (keys.KeyA || keys.ArrowLeft) direction.sub(right);
+    if (keys.KeyW) direction.add(forward);
+    if (keys.KeyS) direction.sub(forward);
+    if (keys.KeyD) direction.add(right);
+    if (keys.KeyA) direction.sub(right);
 
     if (direction.lengthSq() > 0) {
       direction.normalize();
-      const speed = playerSpeed * (keys.ShiftLeft ? 2 : 1);
-      camera.position.addScaledVector(direction, speed * delta);
+      const speed = keys.ShiftLeft || keys.ShiftRight ? 32 : 16;
+      camera.position.addScaledVector(direction, speed * dt);
     }
 
-    if (keys.Space) camera.position.y += 12 * delta;
-    if (keys.ControlLeft) camera.position.y -= 12 * delta;
+    if (keys.Space) camera.position.y += 12 * dt;
+    if (keys.ControlLeft || keys.ControlRight) {
+      camera.position.y -= 12 * dt;
+    }
 
     camera.position.y = Math.max(1.5, camera.position.y);
   }
