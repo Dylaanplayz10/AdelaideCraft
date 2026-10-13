@@ -174,10 +174,12 @@ function road(x, z, w, d, rotation = 0) {
     new THREE.PlaneGeometry(w, d), asphalt
   );
   r.rotation.x = -Math.PI / 2;
-  r.rotation.z = rotation;
+  r.rotation.y = rotation;
   r.position.set(x, 0.04, z);
+  r.receiveShadow = true;
   scene.add(r);
 }
+
 
 function path(x, z, w, d) {
   const p = new THREE.Mesh(
@@ -216,7 +218,7 @@ function riverSegment(x, z, length, width, angle) {
     new THREE.PlaneGeometry(width, length), riverMat
   );
   r.rotation.x = -Math.PI / 2;
-  r.rotation.z = angle;
+  r.rotation.y = angle;
   r.position.set(x, 0.16, z);
   scene.add(r);
 }
