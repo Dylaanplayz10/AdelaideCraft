@@ -70,10 +70,9 @@ import * as THREE from
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9bc9e5);
-scene.fog = new THREE.Fog(0x9bc9e5, 220, 800);
-
+scene.fog = new THREE.Fog(0x9bc9e5, 350, 2200)
 const camera = new THREE.PerspectiveCamera(
-  75, innerWidth / innerHeight, 0.1, 1400
+  75, innerWidth / innerHeight, 0.1, 3200
 );
 camera.position.set(0, 2, 32);
 
@@ -147,7 +146,7 @@ function box(w, h, d, material, x, y, z, cast = false) {
 }
 
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(1800, 1800), grassMat
+  new THREE.PlaneGeometry(2600, 2600), grassMat
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
@@ -559,7 +558,301 @@ for (let i = 0; i < 18; i++) {
   scene.add(hill);
 }
 
-// Controls: preserve first-person movement
+
+/* ==========================================
+   ADELAIDE 2050 EXPANSION
+   Coast, beaches, suburbs and public places
+   ========================================== */
+
+// --- Materials for the coastline ---
+const beachSand = mat(0xd9c49a, 1);
+const oceanWater = new THREE.MeshStandardMaterial({
+  color: 0x237fa6,
+  roughness: 0.28,
+  metalness: 0.08
+});
+const seaFoam = mat(0xd7eee9);
+const timber = mat(0x98714d);
+const schoolColour = mat(0xe2d8bd);
+const hospitalColour = mat(0xe4e8eb);
+const sportsGrass = mat(0x438c4e);
+const signBackground = mat(0x183b4b);
+
+// --- Large ocean west of Adelaide ---
+const ocean = new THREE.Mesh(
+  new THREE.PlaneGeometry(800, 2400),
+  oceanWater
+);
+ocean.rotation.x = -Math.PI / 2;
+ocean.position.set(-1050, 0.025, 0);
+scene.add(ocean);
+
+// Sandy coastline
+const beach = new THREE.Mesh(
+  new THREE.PlaneGeometry(100, 2200),
+  beachSand
+);
+beach.rotation.x = -Math.PI / 2;
+beach.position.set(-600, 0.045, 0);
+scene.add(beach);
+
+// Narrow shoreline highlight
+const shoreline = new THREE.Mesh(
+  new THREE.PlaneGeometry(2, 2200),
+  seaFoam
+);
+shoreline.rotation.x = -Math.PI / 2;
+shoreline.position.set(-649, 0.065, 0);
+scene.add(shoreline);
+
+// Coastal road and paths
+road(-525, 0, 9, 1450);
+path(-518, 0, 1.8, 1450);
+path(-532, 0, 1.8, 1450);
+
+// --- Extend Adelaide's road network ---
+for (let p = -480; p <= 480; p += 80) {
+  road(p, 0, 8, 1450);
+  road(0, p, 1450, 8);
+
+  path(p - 5.2, 0, 1.2, 1450);
+  path(p + 5.2, 0, 1.2, 1450);
+  path(0, p - 5.2, 1450, 1.2);
+  path(0, p + 5.2, 1450, 1.2);
+}
+
+// --- Suburban housing across the expanded map ---
+for (let x = -440; x <= 440; x += 80) {
+  for (let z = -640; z <= 640; z += 80) {
+
+    // Preserve the central CBD and main landmarks
+    if (Math.abs(x) < 120 && Math.abs(z) < 180) continue;
+
+    // Keep the immediate coastline open
+    if (x < -390) continue;
+
+    if (rand() > 0.25) {
+      house(
+        x + (rand() - 0.5) * 22,
+        z + (rand() - 0.5) * 22,
+        0.85 + rand() * 0.3
+      );
+    }
+
+    if (rand() > 0.76) {
+      tree(x + 22, z + 19, 0.7 + rand() * 0.25);
+    }
+  }
+}
+
+// --- 3D location signs ---
+function citySign(text, x, z, size = 1) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#16394a';
+  ctx.fillRect(0, 0, 512, 128);
+
+  ctx.strokeStyle = '#8fe0bd';
+  ctx.lineWidth = 7;
+  ctx.strokeRect(5, 5, 502, 118);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 38px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 64, 470);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const sign = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      depthWrite: false
+    })
+  );
+
+  sign.position.set(x, 13, z);
+  sign.scale.set(18 * size, 4.5 * size, 1);
+  scene.add(sign);
+}
+
+// --- Beach jetties ---
+function beachJetty(z, name) {
+  // Timber jetty extending west from the sand into the ocean
+  box(100, 0.7, 5, timber, -685, 0.65, z, true);
+
+  for (let x = -725; x <= -645; x += 20) {
+    box(0.35, 0.9, 0.35, timber, x, 0.1, z);
+  }
+
+  citySign(name, -590, z - 24, 0.8);
+}
+
+beachJetty(0, 'GLENELG BEACH');
+beachJetty(270, 'HENLEY BEACH');
+beachJetty(-360, 'SEMAPHORE BEACH');
+beachJetty(-175, 'WEST BEACH');
+
+// --- School campuses ---
+function school(x, z, name) {
+  // Main school building
+  building(x, z, 34, 24, 12, 'low');
+
+  // Classroom wing
+  building(x + 24, z + 19, 24, 13, 7, 'low');
+
+  // Outdoor sports court
+  const court = new THREE.Mesh(
+    new THREE.PlaneGeometry(34, 22),
+    concrete
+  );
+  court.rotation.x = -Math.PI / 2;
+  court.position.set(x - 35, 0.06, z + 8);
+  scene.add(court);
+
+  // Court markings
+  box(0.2, 0.04, 20, whiteLine,
+      x - 35, 0.09, z + 8);
+  box(30, 0.04, 0.2, whiteLine,
+      x - 35, 0.09, z + 8);
+
+  // School oval
+  const ovalGround = new THREE.Mesh(
+    new THREE.CircleGeometry(23, 40),
+    sportsGrass
+  );
+  ovalGround.rotation.x = -Math.PI / 2;
+  ovalGround.scale.set(1.25, 0.75, 1);
+  ovalGround.position.set(x + 47, 0.05, z + 15);
+  scene.add(ovalGround);
+
+  citySign(name, x, z - 22, 0.85);
+}
+
+school(310, 270, 'ADELAIDE SCHOOL');
+school(-260, 320, 'WESTERN SCHOOL');
+school(350, -440, 'FUTURE HIGH SCHOOL');
+
+// --- Hospital campuses ---
+function hospital(x, z, name) {
+  // Main hospital and connected wings
+  building(x, z, 42, 28, 22, 'low');
+  building(x + 28, z + 5, 20, 24, 13, 'low');
+  building(x - 27, z + 7, 18, 20, 10, 'low');
+
+  // Red medical cross
+  const red = mat(0xd84343);
+
+  box(7, 1.5, 0.8, red, x, 22, z + 14);
+  box(1.5, 7, 0.8, red, x, 22, z + 14);
+
+  // Entrance canopy
+  box(13, 0.6, 5, concrete, x, 3.2, z + 18);
+
+  citySign(name, x, z - 28, 0.9);
+}
+
+hospital(400, 130, 'ADELAIDE HOSPITAL');
+hospital(-250, -400, 'WESTERN HOSPITAL');
+
+// --- Shopping centres ---
+function shoppingCentre(x, z, name) {
+  building(x, z, 58, 42, 13, 'low');
+
+  // Broad entrance canopy
+  box(22, 1, 5, concrete, x, 5, z + 24);
+
+  // Parking area
+  const parking = new THREE.Mesh(
+    new THREE.PlaneGeometry(72, 45),
+    roadMat
+  );
+  parking.rotation.x = -Math.PI / 2;
+  parking.position.set(x + 58, 0.055, z);
+  scene.add(parking);
+
+  // Parking bay lines
+  for (let i = -30; i <= 30; i += 6) {
+    box(0.15, 0.03, 15, whiteLine,
+        x + 58 + i, 0.08, z);
+  }
+
+  citySign(name, x, z - 24, 0.9);
+}
+
+shoppingCentre(300, -280, 'CITY SHOPPING');
+shoppingCentre(-180, 500, 'COASTAL CENTRE');
+
+// --- Train station and public transport hub ---
+function transportHub(x, z) {
+  building(x, z, 40, 14, 7, 'low');
+
+  // Two platforms
+  for (const side of [-1, 1]) {
+    box(46, 0.6, 5, concrete,
+        x, 0.45, z + side * 12);
+  }
+
+  // Covered platform roofs
+  for (const side of [-1, 1]) {
+    box(46, 0.35, 5, roofMat,
+        x, 4.8, z + side * 12);
+  }
+
+  // Rail tracks
+  for (const side of [-1, 1]) {
+    box(46, 0.12, 0.25, roofMat,
+        x, 0.16, z + side * 17);
+    box(46, 0.12, 0.25, roofMat,
+        x, 0.16, z + side * 19);
+  }
+
+  citySign('TRAIN AND TRAM HUB', x, z - 17, 0.9);
+}
+
+transportHub(100, 230);
+transportHub(-350, -80);
+
+// --- Additional parks ---
+park(240, 430, 75, 70);
+park(-330, 150, 65, 85);
+park(430, -100, 60, 90);
+
+for (let i = 0; i < 90; i++) {
+  const x = (rand() - 0.5) * 600;
+  const z = (rand() - 0.5) * 1200;
+
+  // Avoid the ocean, central streets and key facilities
+  if (x < -480) continue;
+  if (Math.abs(x % 80) < 9) continue;
+  if (Math.abs(z % 80) < 9) continue;
+
+  tree(x, z, 0.75 + rand() * 0.5);
+}
+
+// --- 2050 solar-powered community buildings ---
+function solarCommunity(x, z) {
+  pavilion(x, z, 26, 18, 8);
+
+  // Solar array
+  for (let i = -2; i <= 2; i++) {
+    box(3.5, 0.12, 5, mat(0x174d6c, 0.25, 0.25),
+        x + i * 4, 8.6, z);
+  }
+
+  // Garden
+  park(x + 24, z, 18, 24);
+  tree(x + 24, z + 7, 0.9);
+}
+
+solarCommunity(220, 480);
+solarCommunity(430, 300);
+
+  // Controls: preserve first-person movement
 const keys = {};
 let yaw = 0, pitch = 0;
 
