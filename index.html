@@ -382,8 +382,8 @@ function building(x, z, w, d, h, type = 'tower') {
         ), windowMat
       );
       side.rotation.y = Math.PI/2;
-      side.position.set(x+w/2+0.012, wy, wz);
-      scene.add(side);
+side.position.set(x+w/2+0.012, h/2, wz);
+ scene.add(side);
 
       const other = side.clone();
       other.position.x = x-w/2-0.012;
